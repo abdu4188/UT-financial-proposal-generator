@@ -15,10 +15,24 @@ export default {
   components: {
     Navbar,
     Footer
+  },
+  mounted(){
   }
 }
 </script>
 
 <style>
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    margin: 0 0 300px !important;
+    min-height: 400px;
+    margin-bottom: 100px;
+    clear: both;
+}
+
 </style>
 

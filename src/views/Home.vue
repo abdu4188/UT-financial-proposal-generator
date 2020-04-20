@@ -101,7 +101,7 @@
             <div class="col-sm-6">
               <div class="field input-field">
                 <textarea id="notes" class="materialize-textarea"></textarea>
-                <label for="notes">Note:</label>
+                <label for="notes">Remarks:</label>
               </div>
             </div>
 
@@ -161,6 +161,8 @@ export default {
 <style>
 .home .card-panel{
   border-radius: 25px;
+  margin-top: 7vw;
+  margin-bottom: 7vw;
 }
 .custom-container{
   width: 80vw;
