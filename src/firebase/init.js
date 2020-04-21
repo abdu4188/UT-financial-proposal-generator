@@ -26,5 +26,5 @@ var firebaseConfig = {
   export{
       db,
       storage,
-      auth
+      auth,
   }

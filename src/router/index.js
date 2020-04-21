@@ -29,6 +29,11 @@ Vue.use(VueRouter)
     name: 'Signup',
     component: lazyLoad('Auth/Signup')
   },
+  {
+    path: '/add-user',
+    name: 'AddUser',
+    component: lazyLoad('AddUser')
+  },
 ]
 
 const router = new VueRouter({
