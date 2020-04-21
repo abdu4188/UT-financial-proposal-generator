@@ -25,7 +25,7 @@ Vue.use(VueRouter)
     component: lazyLoad('Auth/Login')
   },
   {
-    path: '/signup',
+    path: '/signup/:superu/:email',
     name: 'Signup',
     component: lazyLoad('Auth/Signup')
   },
