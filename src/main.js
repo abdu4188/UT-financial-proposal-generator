@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import App from './App.vue'
 import router from './router'
+import {auth} from '@/firebase/init'
 import VueProgressBar from 'vue-progressbar'
 import VuejsDialog from 'vuejs-dialog';
 import 'vuejs-dialog/dist/vuejs-dialog.min.css';
@@ -23,7 +24,13 @@ Vue.config.productionTip = false
 Vue.use(VuejsDialog);
 Vue.use(VueProgressBar, options)
 
-new Vue({
-  router,
-  render: h => h(App)
-}).$mount('#app')
+let app = null
+
+auth.onAuthStateChanged(() => {
+  if(!app){
+    app = new Vue({
+      router,
+      render: h => h(App)
+    }).$mount('#app')
+  }
+})

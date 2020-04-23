@@ -5,7 +5,7 @@
         <div class="card-content center">
           <h5 class="card-title blue-text darken-3">Create New Document</h5>
 
-          <form class="form-group">
+          <form @submit.prevent="" class="form-group">
             <div class="row">
 
               <div class="col-sm-6">
@@ -140,8 +140,9 @@
             </div>
           </div>
 
-          <a class="create-btn waves-effect waves-light btn blue darken-3 white-text">create</a>
+          <a @click="create" class="create-btn waves-effect waves-light btn blue darken-3 white-text">create</a><br>
 
+          <a :href="downloadLink" id="download" class="create-btn waves-effect waves-light btn blue darken-3 white-text">Download</a>
         </div>
       </div>
     </div>
@@ -149,9 +150,117 @@
 </template>
 
 <script>
+import {storage} from '@/firebase/init'
+import Docxtemplater from "docxtemplater";
+import PizZip from "pizzip";
+import PizZipUtils from "pizzip/utils/index.js";
+import { saveAs } from "file-saver"
+
+function loadFile(url, callback) {
+  PizZipUtils.getBinaryContent(url, callback);
+}
+
 export default {
   name: 'Home',
   components: {
+  },
+  data(){
+    return{
+      project: null,
+      docName: null,
+      orgName: null,
+      refNo: null,
+      ourRefNo: null,
+      date: null,
+      exchageRate: null,
+      option: null,
+      downloadLink: null
+    }
+  },
+  methods:{
+    create(){
+      var storageRef = storage.ref()
+      storageRef.child('master_doc/master.docx').getDownloadURL().then((url) => {
+        // `url` is the download URL for 'images/stars.jpg'
+
+        // This can be downloaded directly:
+        var xhr = new XMLHttpRequest();
+        xhr.responseType = 'blob';
+        xhr.onload = function() {
+        };
+        xhr.open('GET', url);
+        xhr.send();
+
+        // var downloadBtn = document.getElementById('download');
+        // downloadBtn.setAttribute('href',url)
+        // let process = firebase.functions().httpsCallable('process');
+        // process({
+        //   masterUrl: url
+        // })
+
+        this.renderDoc(url)
+
+      }).catch(function(err) {
+        // Handle any errors
+        console.log(err.message);
+      });  
+    },
+    renderDoc(url) {
+      loadFile(url, function(
+        error,
+        content
+      ) {
+        if (error) {
+          throw error;
+        }
+        var zip = new PizZip(content);
+        var doc = new Docxtemplater().loadZip(zip);
+        doc.setData({
+          organization: "John",
+          // last_name: "Doe",
+          // phone: "0652455478",
+          // description: "New Website"
+        });
+        try {
+          // render the document (replace all occurences of {first_name} by John, {last_name} by Doe, ...)
+          doc.render();
+        } catch (error) {
+          // The error thrown here contains additional information when logged with JSON.stringify (it contains a properties object containing all suberrors).
+          (key, value) => {
+            if (value instanceof Error) {
+              return Object.getOwnPropertyNames(value).reduce(function(
+                error,
+                key
+              ) {
+                error[key] = value[key];
+                return error;
+              },
+              {});
+            }
+            return value;
+          }
+          console.log(JSON.stringify({ error: error }));
+
+          if (error.properties && error.properties.errors instanceof Array) {
+            const errorMessages = error.properties.errors
+              .map(function(error) {
+                return error.properties.explanation;
+              })
+              .join("\n");
+            console.log("errorMessages", errorMessages);
+            // errorMessages is a humanly readable message looking like this :
+            // 'The tag beginning with "foobar" is unopened'
+          }
+          throw error;
+        }
+        var out = doc.getZip().generate({
+          type: "blob",
+          mimeType:
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        }); //Output the document using Data-URI
+        saveAs(out, "output.docx");
+      });
+    }
   },
   created(){
   },
