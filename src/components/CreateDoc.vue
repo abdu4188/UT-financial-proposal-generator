@@ -171,7 +171,10 @@ import {storage, db} from '@/firebase/init'
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import PizZipUtils from "pizzip/utils/index.js";
-import { saveAs } from "file-saver"
+import firebase from 'firebase'
+// import { saveAs } from "file-saver"
+
+var storageRef = storage.ref()
 
 function loadFile(url, callback) {
   PizZipUtils.getBinaryContent(url, callback);
@@ -241,7 +244,7 @@ export default {
     },
     create(){
       var tempObj = {} 
-      this.slicedRemark = this.remark.replace(/\r\n/g,"\n").split("\n");
+      this.slicedRemark = this.remark != null ? this.remark.replace(/\r\n/g,"\n").split("\n") : [];
       console.log(this.slicedRemark);
       
       this.checkedNotes = this.checkedNotes.concat(this.moreNotes)
@@ -268,7 +271,6 @@ export default {
 
       this.calculateValues(this.inputData[0])
 
-      var storageRef = storage.ref()
       storageRef.child('master_doc/master.docx').getDownloadURL().then((url) => {
         // `url` is the download URL for 'images/stars.jpg'
 
@@ -378,7 +380,49 @@ export default {
           mimeType:
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         }); //Output the document using Data-URI
-        saveAs(out, docName+'.docx');
+        
+        var uploadTask = storageRef.child('generated_docs/'+docName+'.docx').put(out)
+
+        // Listen for state changes, errors, and completion of the upload.
+        uploadTask.on(firebase.storage.TaskEvent.STATE_CHANGED, // or 'state_changed'
+          function(snapshot) {
+            // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+            var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            console.log('Upload is ' + progress + '% done');
+            switch (snapshot.state) {
+              case firebase.storage.TaskState.PAUSED: // or 'paused'
+                console.log('Upload is paused');
+                break;
+              case firebase.storage.TaskState.RUNNING: // or 'running'
+                console.log('Upload is running');
+                break;
+            }
+          }, function(error) {
+
+          // A full list of error codes is available at
+          // https://firebase.google.com/docs/firebase.storage/web/handle-errors
+          switch (error.code) {
+            case 'storage/unauthorized':
+              // User doesn't have permission to access the object
+              console.log("unauthorized");
+              break;
+
+            case 'storage/canceled':
+              // User canceled the upload
+              console.log("canceled");
+              break;
+
+            case 'storage/unknown':
+              // Unknown error occurred, inspect error.serverResponse
+              console.log("unknown");
+              break;
+          }
+        }, function() {
+          // Upload completed successfully, now we can get the download URL
+          uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL) {
+            console.log('File available at', downloadURL);
+          });
+        });
       });
     },
     calculateValues(inputData){
