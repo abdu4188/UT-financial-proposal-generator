@@ -54,7 +54,6 @@
           </form>
 
           <table class="stripped centered">
-            <pre>{{ form }}</pre>
             <thead>
               <tr>
                 <th></th>
@@ -162,7 +161,7 @@ import {storage, db} from '@/firebase/init'
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import PizZipUtils from "pizzip/utils/index.js";
-// import { saveAs } from "file-saver"
+import { saveAs } from "file-saver"
 
 function loadFile(url, callback) {
   PizZipUtils.getBinaryContent(url, callback);
@@ -181,7 +180,7 @@ export default {
       refNo: null,
       ourRefNo: null,
       date: null,
-      exchageRate: null,
+      exchageRate: 1,
       option: null,
       downloadLink: null,
       currentRows: 0,
@@ -191,6 +190,10 @@ export default {
       subRows: [],
       mainRows: [],
       calculatedValues: {},
+      netTotal: 0,
+      outputData: {
+        "table": []
+      },
     }
   },
   methods:{
@@ -209,41 +212,25 @@ export default {
     },
     deleteRow(index){
       this.tableRows.splice(index, 1)
+      this.currentRows--
     },
     create(){
-      var tempObj = {}
+      var tempObj = {} 
 
-      for (let index = 0; index < this.subRows.length; index++) {
-        tempObj['sub_item_no-'+this.subRows[index]] = this.form['item_no'+this.subRows[index]]
-        tempObj['sub_part_no-'+this.subRows[index]] = this.form['part_no'+this.subRows[index]]
-        tempObj['sub_description-'+this.subRows[index]] = this.form['description'+this.subRows[index]]
-        tempObj['sub_quantity-'+this.subRows[index]] = this.form['quantity'+this.subRows[index]]
-        tempObj['sub_ump-'+this.subRows[index]] = this.form['ump'+this.subRows[index]]
-        tempObj['sub_markup-'+this.subRows[index]] = this.form['markup_percentage'+this.subRows[index]]
-        tempObj['sub_freight-'+this.subRows[index]] = this.form['freight'+this.subRows[index]]
-        tempObj['sub_other_costs-'+this.subRows[index]] = this.form['other_costs'+this.subRows[index]]
-        tempObj['sub_custom_rate-'+this.subRows[index]] = this.form['custom_rates'+this.subRows[index]]
-        tempObj['sub_excise_tax-'+this.subRows[index]] = this.form['excise_tax'+this.subRows[index]]
-        tempObj['sub_vat-'+this.subRows[index]] = this.form['vat'+this.subRows[index]]
-        tempObj['sub_surtax-'+this.subRows[index]] = this.form['surtax'+this.subRows[index]]
-        tempObj['sub_witholding-'+this.subRows[index]] = this.form['withholding_tax'+this.subRows[index]]
-
-      }
-
-      for (let index = 0; index < this.mainRows.length; index++) {
-        tempObj['item_no-'+this.mainRows[index]] = this.form['item_no'+this.mainRows[index]]
-        tempObj['part_no-'+this.mainRows[index]] = this.form['part_no'+this.mainRows[index]]
-        tempObj['description-'+this.mainRows[index]] = this.form['description'+this.mainRows[index]]
-        tempObj['quantity-'+this.mainRows[index]] = this.form['quantity'+this.mainRows[index]]
-        tempObj['ump-'+this.mainRows[index]] = this.form['ump'+this.mainRows[index]]
-        tempObj['markup-'+this.mainRows[index]] = this.form['markup_percentage'+this.mainRows[index]]
-        tempObj['freight-'+this.mainRows[index]] = this.form['freight'+this.mainRows[index]]
-        tempObj['other_costs-'+this.mainRows[index]] = this.form['other_costs'+this.mainRows[index]]
-        tempObj['custom_rate-'+this.mainRows[index]] = this.form['custom_rates'+this.mainRows[index]]
-        tempObj['excise_tax-'+this.mainRows[index]] = this.form['excise_tax'+this.mainRows[index]]
-        tempObj['vat-'+this.mainRows[index]] = this.form['vat'+this.mainRows[index]]
-        tempObj['surtax-'+this.mainRows[index]] = this.form['surtax'+this.mainRows[index]]
-        tempObj['witholding-'+this.mainRows[index]] = this.form['withholding_tax'+this.mainRows[index]]
+      for (let index = 0; index < this.tableRows.length; index++) {
+        tempObj['item_no-'+this.tableRows[index]] = this.form['item_no'+this.tableRows[index]]
+        tempObj['part_no-'+this.tableRows[index]] = this.form['part_no'+this.tableRows[index]]
+        tempObj['description-'+this.tableRows[index]] = this.form['description'+this.tableRows[index]]
+        tempObj['quantity-'+this.tableRows[index]] = this.form['quantity'+this.tableRows[index]]
+        tempObj['ump-'+this.tableRows[index]] = this.form['ump'+this.tableRows[index]]
+        tempObj['markup-'+this.tableRows[index]] = this.form['markup_percentage'+this.tableRows[index]]
+        tempObj['freight-'+this.tableRows[index]] = this.form['freight'+this.tableRows[index]]
+        tempObj['other_costs-'+this.tableRows[index]] = this.form['other_costs'+this.tableRows[index]]
+        tempObj['custom_rate-'+this.tableRows[index]] = this.form['custom_rates'+this.tableRows[index]]
+        tempObj['excise_tax-'+this.tableRows[index]] = this.form['excise_tax'+this.tableRows[index]]
+        tempObj['vat-'+this.tableRows[index]] = this.form['vat'+this.tableRows[index]]
+        tempObj['surtax-'+this.tableRows[index]] = this.form['surtax'+this.tableRows[index]]
+        tempObj['witholding-'+this.tableRows[index]] = this.form['withholding_tax'+this.tableRows[index]]
         
       }
 
@@ -251,7 +238,6 @@ export default {
       this.inputData.push(tempObj)
 
       this.calculateValues(this.inputData[0])
-      console.log(this.calculatedValues);
 
       var storageRef = storage.ref()
       storageRef.child('master_doc/master.docx').getDownloadURL().then((url) => {
@@ -280,6 +266,8 @@ export default {
       });  
     },
     renderDoc(url) {
+      console.log(this.outputData);
+      var tempOutput = this.outputData;
       loadFile(url, function(
         error,
         content
@@ -289,12 +277,9 @@ export default {
         }
         var zip = new PizZip(content);
         var doc = new Docxtemplater().loadZip(zip);
-        doc.setData({
-          organization: "John",
-          // last_name: "Doe",
-          // phone: "0652455478",
-          // description: "New Website"
-        });
+        doc.setData(
+          tempOutput
+        );
         try {
           // render the document (replace all occurences of {first_name} by John, {last_name} by Doe, ...)
           doc.render();
@@ -327,12 +312,12 @@ export default {
           }
           throw error;
         }
-        // var out = doc.getZip().generate({
-        //   type: "blob",
-        //   mimeType:
-        //     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        // }); //Output the document using Data-URI
-        // saveAs(out, "output.docx");
+        var out = doc.getZip().generate({
+          type: "blob",
+          mimeType:
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        }); //Output the document using Data-URI
+        saveAs(out, "output.docx");
       });
     },
     calculateValues(inputData){
@@ -347,34 +332,53 @@ export default {
       var withholding = 0
       var vat = 0
 
-      for (let index = 0; index < this.mainRows.length; index++) {
-        customRate = inputData['custom_rate-'+this.mainRows[index]] != undefined ? parseInt(inputData['custom_rate-'+this.mainRows[index]])  : 0
-        exciseTax = inputData['excise_tax-'+this.mainRows[index]] != undefined ?  parseInt(inputData['excise_tax-'+this.mainRows[index]]) : 0
-        freight = inputData['freight-'+this.mainRows[index]] != undefined ? parseInt(inputData['freight-'+this.mainRows[index]]) : 0
-        markup = parseInt(inputData['markup-'+this.mainRows[index]]) 
-        otherCosts = inputData['other_costs-'+this.mainRows[index]] != undefined ? parseInt(inputData['other_costs-'+this.mainRows[index]]) : 0
-        quantity = inputData['quantity-'+this.mainRows[index]] != undefined ? parseInt(inputData['quantity-'+this.mainRows[index]]) : 0
-        surtax = inputData['surtax-'+this.mainRows[index]] != undefined ? parseInt(inputData['surtax-'+this.mainRows[index]]) : 0
-        ump = inputData['ump-'+this.mainRows[index]] != undefined ? parseInt(inputData['ump-'+this.mainRows[index]]) : 0
-        withholding = inputData['witholding-'+this.mainRows[index]] != undefined ? parseInt(inputData['witholding-'+this.mainRows[index]]) : 0
-        vat = inputData['vat-'+this.mainRows[index]] != undefined ? parseInt(inputData['vat-'+this.mainRows[index]]) :0
+      for (let index = 0; index < this.tableRows.length; index++) {
+        customRate = inputData['custom_rate-'+this.tableRows[index]] != undefined ? parseInt(inputData['custom_rate-'+this.tableRows[index]])  : 0
+        exciseTax = inputData['excise_tax-'+this.tableRows[index]] != undefined ?  parseInt(inputData['excise_tax-'+this.tableRows[index]]) : 0
+        freight = inputData['freight-'+this.tableRows[index]] != undefined ? parseInt(inputData['freight-'+this.tableRows[index]]) : 0
+        markup = parseInt(inputData['markup-'+this.tableRows[index]]) 
+        otherCosts = inputData['other_costs-'+this.tableRows[index]] != undefined ? parseInt(inputData['other_costs-'+this.tableRows[index]]) : 0
+        quantity = inputData['quantity-'+this.tableRows[index]] != undefined ? parseInt(inputData['quantity-'+this.tableRows[index]]) : 0
+        surtax = inputData['surtax-'+this.tableRows[index]] != undefined ? parseInt(inputData['surtax-'+this.tableRows[index]]) : 0
+        ump = inputData['ump-'+this.tableRows[index]] != undefined ? parseInt(inputData['ump-'+this.tableRows[index]]) : 0
+        withholding = inputData['witholding-'+this.tableRows[index]] != undefined ? parseInt(inputData['witholding-'+this.tableRows[index]]) : 0
+        vat = inputData['vat-'+this.tableRows[index]] != undefined ? parseInt(inputData['vat-'+this.tableRows[index]]) :0
+
+        console.log(inputData['item_no-'+this.tableRows[index]]);
 
         var cif = ump + freight + otherCosts
         var customsDuty = cif * (customRate/100)
         var afterExcise = (cif + customsDuty) + ((cif + customsDuty) * (exciseTax/100))
         var afterVat = afterExcise + (afterExcise + (vat/100))
-        var afterSurtax = afterVat + (afterVat + surtax)
+        var afterSurtax = afterVat + (afterVat * (surtax/100))
         var withholdingValue = cif * (withholding/100)
         var costOfGood = afterSurtax + withholdingValue
         var unitSalesPrice = costOfGood + (costOfGood * markup/100)
         var totalPrice = unitSalesPrice * quantity
 
-        this.calculatedValues['unit-price'+this.mainRows[index]] = unitSalesPrice
-        this.calculatedValues['total-price'+this.mainRows[index]] = totalPrice
+        this.calculatedValues['unit-price'+this.tableRows[index]] = (Math.round((unitSalesPrice + Number.EPSILON) * 100) / 100 ) * this.exchageRate
+        this.calculatedValues['total-price'+this.tableRows[index]] = (Math.round((totalPrice + Number.EPSILON) * 100) / 100) * this.exchageRate
 
+        this.outputData['table'].push(
+          {
+            item_no: inputData['item_no-'+this.tableRows[index]] == undefined ? "" : inputData['item_no-'+this.tableRows[index]],
+            part_no: inputData['part_no-'+this.tableRows[index]] == undefined ? "" : inputData['part_no-'+this.tableRows[index]],
+            description: inputData['description-'+this.tableRows[index]] == undefined ? "" : inputData['description-'+this.tableRows[index]],
+            quantity: inputData['quantity-'+this.tableRows[index]] == undefined ? "" : inputData['quantity-'+this.tableRows[index]],
+            unit_price: this.calculatedValues['unit-price'+this.tableRows[index]] == undefined ? "" : this.calculatedValues['unit-price'+this.tableRows[index]],
+            total_price: this.calculatedValues['total-price'+this.tableRows[index]] == undefined ? "" : this.calculatedValues['total-price'+this.tableRows[index]]
+          }
+        )
 
       }
     },
+    calculateNetTotal(){
+      for (let index = 0; index < this.mainRows.length; index++) {          
+        this.netTotal = parseInt(this.netTotal) + parseInt(this.calculatedValues['total-price'+this.mainRows[index]])          
+      }
+      console.log(this.netTotal);
+      
+    }
   },
   created(){
     db.collection('projects').get().then(
