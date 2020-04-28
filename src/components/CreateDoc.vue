@@ -159,7 +159,7 @@
 
           <a @click="create" class="create-btn waves-effect waves-light btn blue darken-3 white-text">create</a><br>
 
-          <a :href="downloadLink" id="download" class="create-btn waves-effect waves-light btn blue darken-3 white-text">Download</a>
+          <a :href="downloadLink" :id="download" class="create-btn waves-effect waves-light btn blue darken-3 white-text">Download</a>
         </div>
       </div>
     </div>
@@ -171,7 +171,7 @@ import {storage, db} from '@/firebase/init'
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import PizZipUtils from "pizzip/utils/index.js";
-import firebase from 'firebase'
+import firebase from 'firebase/app'
 // import { saveAs } from "file-saver"
 
 var storageRef = storage.ref()
@@ -215,6 +215,7 @@ export default {
         "notes": [],
         'remark': [],
       },
+      download: "download",
     }
   },
   methods:{
@@ -281,13 +282,6 @@ export default {
         };
         xhr.open('GET', url);
         xhr.send();
-
-        // var downloadBtn = document.getElementById('download');
-        // downloadBtn.setAttribute('href',url)
-        // let process = firebase.functions().httpsCallable('process');
-        // process({
-        //   masterUrl: url
-        // })
 
         this.renderDoc(url)
 
@@ -421,9 +415,18 @@ export default {
           // Upload completed successfully, now we can get the download URL
           uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL) {
             console.log('File available at', downloadURL);
+
+             
+            unhide(downloadURL)         
           });
         });
+        
       });
+      var vm = this;
+      function unhide(url){
+        vm.downloadLink = url
+        vm.download = "ready"
+      }
     },
     calculateValues(inputData){
       var customRate = 0
@@ -554,5 +557,11 @@ th{
 }
 .create-btn{
   margin: 5vw;
+}
+#download{
+  display: none;
+}
+#ready{
+  display: inline-block;
 }
 </style>
