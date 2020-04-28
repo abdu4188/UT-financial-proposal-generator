@@ -195,6 +195,7 @@ export default {
       optionDescription: null,
       downloadLink: null,
       remark: null,
+      slicedRemark: [],
       checkedNotes: [],
       moreNote: null,
       moreNotes: [],
@@ -208,7 +209,8 @@ export default {
       netTotal: 0,
       outputData: {
         "table": [],
-        "notes": []
+        "notes": [],
+        'remark': [],
       },
     }
   },
@@ -239,6 +241,8 @@ export default {
     },
     create(){
       var tempObj = {} 
+      this.slicedRemark = this.remark.replace(/\r\n/g,"\n").split("\n");
+      console.log(this.slicedRemark);
       
       this.checkedNotes = this.checkedNotes.concat(this.moreNotes)
 
@@ -309,6 +313,14 @@ export default {
         this.outputData['notes'].push(
           {
             notes: this.checkedNotes[index]
+          }
+        )
+      }
+
+      for (let index = 0; index < this.slicedRemark.length; index++) {
+        this.outputData['remark'].push(
+          {
+            remark: this.slicedRemark[index]
           }
         )
       }
