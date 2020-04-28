@@ -48,6 +48,10 @@
                   <input v-model="option" type="text" name="optioms">
                   <label for="options">Option:</label>
                 </div>
+                <div class="field input-field">
+                  <input v-model="optionDescription" type="text" name="optioms">
+                  <label for="options">Option description:</label>
+                </div>
               </div>
 
             </div>
@@ -107,7 +111,7 @@
           <div class="row">
             <div class="col-sm-6">
               <div class="field input-field">
-                <textarea id="notes" class="materialize-textarea"></textarea>
+                <textarea v-model="remark" id="notes" class="materialize-textarea"></textarea>
                 <label for="notes">Remarks:</label>
               </div>
             </div>
@@ -116,34 +120,40 @@
               <h6> <b>Choose notes to be included</b></h6><br>
               <p>
                 <label>
-                  <input type="checkbox" />
+                  <input type="checkbox" value="Please add 15% on all prices" v-model="checkedNotes"/>
                   <span>Please add 15% on all prices</span>
                 </label><br>
                 <label>
-                  <input type="checkbox" />
+                  <input type="checkbox" value="Price is valid for 15 days" v-model="checkedNotes"/>
                   <span>Price is valid for 15 days</span>
                 </label><br>
                 <label>
-                  <input type="checkbox" />
+                  <input type="checkbox" value="All prices are in Ethiopian birr" v-model="checkedNotes"/>
                   <span>All prices are in Ethiopian birr</span>
                 </label><br>
                 <label>
-                  <input type="checkbox" />
+                  <input type="checkbox" value="Delivery will be within 45 days after PO, advance and bank foreign currency approval" v-model="checkedNotes"/>
                   <span>Delivery will be within 45 days after PO, advance and bank foreign currency approval</span>
                 </label><br>
                 <label>
-                  <input type="checkbox" />
+                  <input type="checkbox" value="Payment Term 50% advance and remaining amount after delivery" v-model="checkedNotes"/>
                   <span>Payment Term 50% advance and remaining amount after delivery</span>
                 </label><br>
                 <label>
-                  <input type="checkbox" />
+                  <input type="checkbox" value="Installation is NOT part of this Quote" v-model="checkedNotes"/>
                   <span>Installation is NOT part of this Quote</span>
                 </label><br>
               </p>
-               <div class="field ce input-field">
-                <textarea id="notes" class="materialize-textarea" placeholder="note"></textarea>
-              </div>
-              <a class="waves-effect waves-light btn teal darken-3 white-text">add more</a>
+              <form @submit.prevent="addNote">
+                <div v-for="(note, index) in moreNotes" :key="index">
+                  <div class="chip"> {{note}} </div>
+                  <a @click.prevent="deleteNote(index)" class="waves-effect waves-light btn red darken-3 white-text"><i class="material-icons left">delete</i></a>
+                </div>
+                <div class="field ce input-field">
+                  <textarea id="notes" class="materialize-textarea" v-model="moreNote" placeholder="note"></textarea>
+                </div>
+                <button type="submit" class="waves-effect waves-light btn teal darken-3 white-text">add</button>
+              </form>
             </div>
           </div>
 
@@ -182,7 +192,12 @@ export default {
       date: null,
       exchageRate: 1,
       option: null,
+      optionDescription: null,
       downloadLink: null,
+      remark: null,
+      checkedNotes: [],
+      moreNote: null,
+      moreNotes: [],
       currentRows: 0,
       tableRows: [],
       inputData: [],
@@ -192,11 +207,19 @@ export default {
       calculatedValues: {},
       netTotal: 0,
       outputData: {
-        "table": []
+        "table": [],
+        "notes": []
       },
     }
   },
   methods:{
+    addNote(){
+      this.moreNotes.push(this.moreNote)
+      this.moreNote = null
+    },
+    deleteNote(index){
+      this.moreNotes.pop(index)
+    },
     addRow(isSUb){
       this.currentRows++
       this.tableRows.push(this.currentRows)      
@@ -216,6 +239,8 @@ export default {
     },
     create(){
       var tempObj = {} 
+      
+      this.checkedNotes = this.checkedNotes.concat(this.moreNotes)
 
       for (let index = 0; index < this.tableRows.length; index++) {
         tempObj['item_no-'+this.tableRows[index]] = this.form['item_no'+this.tableRows[index]]
@@ -266,8 +291,31 @@ export default {
       });  
     },
     renderDoc(url) {
-      console.log(this.outputData);
+      this.calculateNetTotal()
       var tempOutput = this.outputData;
+      var docName;
+      
+      this.outputData['organization'] = this.orgName;
+      this.outputData['project_type'] = this.projects;
+      this.outputData['reference'] = this.refNo;
+      this.outputData['option'] = this.option;
+      this.outputData['option_comment'] =this.optionDescription
+      this.outputData['our_ref_no'] = this.ourRefNo;
+      this.outputData['date'] = this.date;
+      this.outputData['total'] = this.netTotal;
+      this.outputData['reminder'] = this.remark;
+
+      for (let index = 0; index < this.checkedNotes.length; index++) {
+        this.outputData['notes'].push(
+          {
+            notes: this.checkedNotes[index]
+          }
+        )
+      }
+
+      docName = this.docName;
+
+
       loadFile(url, function(
         error,
         content
@@ -277,6 +325,7 @@ export default {
         }
         var zip = new PizZip(content);
         var doc = new Docxtemplater().loadZip(zip);
+
         doc.setData(
           tempOutput
         );
@@ -317,7 +366,7 @@ export default {
           mimeType:
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         }); //Output the document using Data-URI
-        saveAs(out, "output.docx");
+        saveAs(out, docName+'.docx');
       });
     },
     calculateValues(inputData){
@@ -343,8 +392,6 @@ export default {
         ump = inputData['ump-'+this.tableRows[index]] != undefined ? parseInt(inputData['ump-'+this.tableRows[index]]) : 0
         withholding = inputData['witholding-'+this.tableRows[index]] != undefined ? parseInt(inputData['witholding-'+this.tableRows[index]]) : 0
         vat = inputData['vat-'+this.tableRows[index]] != undefined ? parseInt(inputData['vat-'+this.tableRows[index]]) :0
-
-        console.log(inputData['item_no-'+this.tableRows[index]]);
 
         var cif = ump + freight + otherCosts
         var customsDuty = cif * (customRate/100)
@@ -376,7 +423,6 @@ export default {
       for (let index = 0; index < this.mainRows.length; index++) {          
         this.netTotal = parseInt(this.netTotal) + parseInt(this.calculatedValues['total-price'+this.mainRows[index]])          
       }
-      console.log(this.netTotal);
       
     }
   },
