@@ -11,9 +11,9 @@
               <div class="col-sm-6">
                 <div class="field">
                   <br>
-                  <select v-model="selectedProject" v-for="(project, index) in projects" :key="index" name="project" class="form-control">
+                  <select @change="projectChange" v-model="selectedProject" v-for="(project, index) in projects" :key="index" name="project" class="form-control">
                     <option disabled value="">Choose project</option>
-                    <option :value="project" selected="selected"> {{project}} </option>
+                    <option :value="project" selected="selected"> {{project['name']}} </option>
                   </select>
                   <div class="field input-field">
                     <input v-model="orgName" type="text" name="organizatio">
@@ -57,7 +57,7 @@
             </div>
           </form>
 
-          <table class="stripped centered">
+          <table class="stripped highlight centered">
             <thead>
               <tr>
                 <th></th>
@@ -84,7 +84,7 @@
                         <td><input v-model="form['markup_percentage'+row]" class="markup" type="number" step="0.01" placeholder="markup %"></td>
                         <td><a  @click="addRow(true) "  class="add-sub waves-effect waves-light btn teal darken-3 white-text"><i class="material-icons left">add</i>sub</a></td>
                       </tr>
-                      <tr>
+                      <tr class="small-row">
                         <td><div class="chip">Freight and Insurance</div></td>
                         <td><div class="chip">Other costs</div></td>
                         <td><div class="chip">Custom Rates</div></td>
@@ -93,7 +93,7 @@
                         <td><div class="chip">Surtax</div></td>
                         <td><div class="chip">Withholding Tax</div></td>
                       </tr>
-                      <tr>
+                      <tr class="small-row">
                         <td><input v-model="form['freight'+row]" type="number" placeholder="freight & insurance"></td>
                         <td><input v-model="form['other_costs'+row]" type="number" placeholder="other costs"></td>
                         <td><input v-model="form['custom_rates'+row]" type="number" placeholder="custom rates"></td>
@@ -167,7 +167,7 @@
 </template>
 
 <script>
-import {storage, db} from '@/firebase/init'
+import {storage, db, auth} from '@/firebase/init'
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import PizZipUtils from "pizzip/utils/index.js";
@@ -186,6 +186,7 @@ export default {
   },
   data(){
     return{
+      uid: null,
       projects: [],
       selectedProject: '',
       docName: null,
@@ -219,6 +220,9 @@ export default {
     }
   },
   methods:{
+    projectChange(){
+      console.log(this.selectedProject);
+    },
     addNote(){
       this.moreNotes.push(this.moreNote)
       this.moreNote = null
@@ -296,7 +300,7 @@ export default {
       var docName;
       
       this.outputData['organization'] = this.orgName;
-      this.outputData['project_type'] = this.projects;
+      this.outputData['project_type'] = this.selectedProject['name'];
       this.outputData['reference'] = this.refNo;
       this.outputData['option'] = this.option;
       this.outputData['option_comment'] =this.optionDescription
@@ -416,7 +420,7 @@ export default {
           uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL) {
             console.log('File available at', downloadURL);
 
-             
+            saveToDB(downloadURL)
             unhide(downloadURL)         
           });
         });
@@ -426,6 +430,17 @@ export default {
       function unhide(url){
         vm.downloadLink = url
         vm.download = "ready"
+      }
+
+      function saveToDB(downloadURL){
+        db.collection('documents').doc().set({
+          document_name: vm.docName,
+          document_path: downloadURL,
+          project_id: vm.selectedProject['id'],
+          time: Date.now(),
+          user_id: vm.uid,
+          organization: vm.orgName
+        })
       }
     },
     calculateValues(inputData){
@@ -486,10 +501,18 @@ export default {
     }
   },
   created(){
+    var user = auth.currentUser
+    this.uid = user.uid
     db.collection('projects').get().then(
       snapshot => {
         snapshot.forEach(doc => {
-          this.projects.push(doc.data()['name'])
+          console.log(doc.id);
+          this.projects.push(
+            {
+              id: doc.id,
+              name: doc.data()['name']
+            }
+          )
         });
       }
     )
@@ -554,6 +577,9 @@ th{
 }
 .chip{
   height: auto;
+  font-size: 1;
+  padding: 1;
+  margin: 1;
 }
 .create-btn{
   margin: 5vw;
@@ -563,5 +589,8 @@ th{
 }
 #ready{
   display: inline-block;
+}
+.small-row{
+  line-height: 10px;
 }
 </style>
