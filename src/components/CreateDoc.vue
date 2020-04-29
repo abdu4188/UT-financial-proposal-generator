@@ -441,6 +441,10 @@ export default {
           user_id: vm.uid,
           organization: vm.orgName
         })
+
+        db.collection('projects').doc(vm.selectedProject['id']).update({
+          modified: Date.now()
+        })
       }
     },
     calculateValues(inputData){
