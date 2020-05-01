@@ -1,9 +1,17 @@
 <template>
   <div class="home">
-    <div class="container custom-container">
+    <radial-progress-bar id="loading" :class="{'radial-progress-hidden' : !uploadStart, 'radial-progress-visible': uploadStart}" :diameter="150"
+                       :completed-steps="completedSteps"
+                       :total-steps="totalSteps"
+                       :startColor="'blue'"
+                       :stopColor="'#90ee90'">
+   <h4 class="blue-text">{{ completedSteps }} % </h4>
+  </radial-progress-bar>
+    <div :class="{'blurAll' : uploadStart}" class="container custom-container">
       <div class="card-panel">
         <div class="card-content center">
           <h5 class="card-title blue-text darken-3">Create New Document</h5>
+          <h6 class="red-text">Please disable xdm browser extension if you have enabled it</h6>
 
           <form @submit.prevent="" class="form-group">
             <div class="row">
@@ -11,10 +19,11 @@
               <div class="col-sm-6">
                 <div class="field">
                   <br>
-                  <select @change="projectChange" v-model="selectedProject" v-for="(project, index) in projects" :key="index" name="project" class="form-control">
+                  <select id="project" @change="projectChange" v-model="selectedProject" name="project" class="form-control">
                     <option disabled value="">Choose project</option>
-                    <option :value="project" selected="selected"> {{project['name']}} </option>
+                    <option  v-for="(project, index) in projects" :key="index"  :value="project" selected="selected"> {{project['name']}} </option>
                   </select>
+                  <p v-if="projectFeedback" class="red-text">{{ projectFeedback }}</p>
                   <div class="field input-field">
                     <input v-model="orgName" type="text" name="organizatio">
                     <label for="organization">Organization:</label>
@@ -172,7 +181,7 @@ import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import PizZipUtils from "pizzip/utils/index.js";
 import firebase from 'firebase/app'
-// import { saveAs } from "file-saver"
+import RadialProgressBar from 'vue-radial-progress'
 
 var storageRef = storage.ref()
 
@@ -183,12 +192,17 @@ function loadFile(url, callback) {
 export default {
   name: 'Home',
   components: {
+    RadialProgressBar
   },
   data(){
     return{
+      completedSteps: 0,
+      totalSteps: 100,
+      uploadStart: false,
       uid: null,
       projects: [],
       selectedProject: '',
+      projectFeedback: null,
       docName: null,
       orgName: null,
       refNo: null,
@@ -248,6 +262,14 @@ export default {
       this.currentRows--
     },
     create(){
+      if(this.selectedProject == ''){
+        this.projectFeedback = "please select a project"
+        this.$Progress.fail()
+        var project = document.getElementById('project')
+        project.scrollIntoView()
+        return null
+      }
+      this.$Progress.start()
       var tempObj = {} 
       this.slicedRemark = this.remark != null ? this.remark.replace(/\r\n/g,"\n").split("\n") : [];
       console.log(this.slicedRemark);
@@ -290,6 +312,7 @@ export default {
         this.renderDoc(url)
 
       }).catch(function(err) {
+        this.$Progress.fail()
         // Handle any errors
         console.log(err.message);
       });  
@@ -345,6 +368,7 @@ export default {
           // render the document (replace all occurences of {first_name} by John, {last_name} by Doe, ...)
           doc.render();
         } catch (error) {
+          this.$Progress.fail();
           // The error thrown here contains additional information when logged with JSON.stringify (it contains a properties object containing all suberrors).
           (key, value) => {
             if (value instanceof Error) {
@@ -378,14 +402,15 @@ export default {
           mimeType:
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         }); //Output the document using Data-URI
-        
+        vm.uploadStart = true
         var uploadTask = storageRef.child('generated_docs/'+docName+'.docx').put(out)
 
         // Listen for state changes, errors, and completion of the upload.
         uploadTask.on(firebase.storage.TaskEvent.STATE_CHANGED, // or 'state_changed'
           function(snapshot) {
-            // Get task progress, including the number of bytes uploaded and the total number of bytes to be uploaded
+            // Get task Progress, including the number of bytes uploaded and the total number of bytes to be uploaded
             var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            vm.completedSteps =  Math.round((progress + Number.EPSILON) * 100) / 100
             console.log('Upload is ' + progress + '% done');
             switch (snapshot.state) {
               case firebase.storage.TaskState.PAUSED: // or 'paused'
@@ -396,6 +421,7 @@ export default {
                 break;
             }
           }, function(error) {
+            vm.$Progress.fail()
 
           // A full list of error codes is available at
           // https://firebase.google.com/docs/firebase.storage/web/handle-errors
@@ -416,6 +442,7 @@ export default {
               break;
           }
         }, function() {
+          vm.uploadStart = false
           // Upload completed successfully, now we can get the download URL
           uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL) {
             console.log('File available at', downloadURL);
@@ -444,7 +471,11 @@ export default {
 
         db.collection('projects').doc(vm.selectedProject['id']).update({
           modified: Date.now()
-        })
+        }).then(
+          () => {
+            vm.$Progress.finish()
+          }
+        )
       }
     },
     calculateValues(inputData){
@@ -596,5 +627,26 @@ th{
 }
 .small-row{
   line-height: 10px;
+}
+.radial-progress-visible{
+  z-index: 1;
+  visibility: visible;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  /* bring your own prefixes */
+  transform: translate(-50%, -50%);
+}
+.radial-progress-hidden{
+  z-index: 1;
+  visibility: hidden;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  /* bring your own prefixes */
+  transform: translate(-50%, -50%);
+}
+.blurAll{
+  filter: blur(3px);
 }
 </style>
