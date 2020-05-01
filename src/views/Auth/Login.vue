@@ -33,7 +33,7 @@
 </template>
 
 <script>
-import {auth} from '@/firebase/init'
+import {auth, db} from '@/firebase/init'
 
 export default {
 name:'Login',
@@ -50,16 +50,29 @@ name:'Login',
     },
     methods: {
         login(){
-            console.log("fun");
-            
             this.$Progress.start()
             if(this.email && this.password){
                 this.passwordFeedback = null
                 this.emailFeedback =  null
                 auth.signInWithEmailAndPassword(this.email, this.password).then(
                     () => {
-                        this.$Progress.finish()
-                        this.$router.push({name: 'Home'})
+                        var uid = auth.currentUser.uid
+                        db.collection('users').doc(uid).get().then(
+                            doc => {
+                                if(doc.data()['disabled']){
+                                    this.$Progress.fail()
+                                    this.passwordFeedback = "Your account has been disabled. Please contact your admin."
+                                }
+                                else if(doc.data()['deleted']){
+                                    this.$Progress.fail()
+                                    this.passwordFeedback = "This account has been deactivated. Please contact your admin."
+                                }
+                                else{
+                                    this.$Progress.finish()
+                                    this.$router.push({name: 'Home'})
+                                }
+                            }
+                        )
                     }
                 ).catch(err => {
                     this.$Progress.fail()
