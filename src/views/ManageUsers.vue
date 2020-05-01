@@ -15,17 +15,15 @@
                             <th></th>
                         </thead>
                         <tbody :key="reRender">
-                            <tr v-for="user in users" :key="user['uid']">
+                            <tr :class="{disabled: user['disabled']}" v-for="user in users" :key="user['uid']">
                                 <td>{{user['fname']+" "+user['surname']}}</td>
                                 <td>{{user['email']}}</td>
                                 <td v-if="user['admin'] == 'super'"><i class="blue-text small material-icons">check</i></td>
                                 <td v-else><i class="blue-text small material-icons">close</i></td>
                                 <td><a v-if="user['disabled']" @click="enable(user)" class="waves-effect waves-light blue white-text darken-3 btn">Enable</a>
                                 <a v-else @click="disable(user)" class="waves-effect waves-light blue white-text darken-3 btn">Disable</a>
-                                
                                 </td>
-                                
-                                <td><a @click="deleteU(user['uid'])"  class="waves-effect waves-light red white-text btn">Delete</a></td>
+                                <td><a @click="deleteU(user)"  class="waves-effect waves-light red white-text btn">Delete</a></td>
                             </tr>
                         </tbody>
                     </table>
@@ -43,7 +41,6 @@ export default {
     data(){
         return{
             users: [],
-            loaded: false,
             reRender: 0,
         }
     },
@@ -80,18 +77,16 @@ export default {
         },
         deleteU(id){
             if(id != undefined){
-                let result = confirm("This action is irreversible. Do you really want to delete this user?")
-                if(result){
-                    db.collection('users').doc(id['user.uid']).update(
-                        {
-                            deleted: true
-                        }
-                    ).then(
-                        () => {
-                            this.forceUpdate()
-                        }
-                    )
-                }
+                console.log(id);
+                db.collection('users').doc(id['user.uid']).update(
+                    {
+                        deleted: true
+                    }
+                ).then(
+                    () => {
+                        this.forceUpdate()
+                    }
+                )
                 
             }
         },
@@ -101,17 +96,12 @@ export default {
             snapshot => {
                 snapshot.forEach(
                     doc => {
-                        this.users.push(doc.data())
+                        doc.data()['deleted'] ? null :this.users.push(doc.data())
                     }
                 );
             }
         )
     },
-    watch: {
-        users: function(){
-            this.loaded = true
-        }
-    }
 }
 </script>
 
@@ -123,5 +113,8 @@ export default {
 }
 .custom-container{
   width: 80vw;
+}
+.disabled{
+    background-color: lightgrey;
 }
 </style>
