@@ -4,7 +4,6 @@ import router from './router'
 import {auth} from '@/firebase/init'
 import VueProgressBar from 'vue-progressbar'
 import VuejsDialog from 'vuejs-dialog';
-import 'vuejs-dialog/dist/vuejs-dialog.min.css';
 
 const options = {
   color: '#bffaf3',
